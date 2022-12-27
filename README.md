@@ -2,21 +2,21 @@
 
 from: [Architecture - DAOS v2.2](https://docs.daos.io/v2.2/overview/architecture/)
 
-[架构](架构.md)
+[架构](overwrite/架构.md)
 
-[存储模型](存储模型.md)
+[存储模型](overwrite/存储模型.md)
 
-[事务模型](事务模型.md)
+[事务模型](overwrite/事务模型.md)
 
-[数据完整性](数据完整性.md)
+[数据完整性](overwrite/数据完整性.md)
 
-[故障模型](故障模型.md)
+[故障模型](overwrite/故障模型.md)
 
-[安全模型](安全模型.md)
+[安全模型](overwrite/安全模型.md)
 
-[使用案例](使用案例.md)
+[使用案例](overwrite/使用案例.md)
 
-[术语](术语.md)
+[术语](overwrite/术语.md)
 
 ## 开源组件
 
