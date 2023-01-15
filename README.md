@@ -42,6 +42,6 @@ from: [Architecture - DAOS v2.2](https://docs.daos.io/v2.2/overview/architecture
 
 [【DAOS】Intel DAOS 分布式异步对象存储|Architecture Overview|架构概述 - bdy - 博客园 (cnblogs.com)](https://www.cnblogs.com/bandaoyu/p/16752030.html)
 
-![img](https://img-blog.csdnimg.cn/85a9d75877874c43ae842e0fd05da7a7.png)
+![img](assets/85a9d75877874c43ae842e0fd05da7a7.png)
 
 [(PDF) DAOS: A Scale-Out High Performance Storage Stack for Storage Class Memory (researchgate.net)](https://www.researchgate.net/publication/341844608_DAOS_A_Scale-Out_High_Performance_Storage_Stack_for_Storage_Class_Memory)

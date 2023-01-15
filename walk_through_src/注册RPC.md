@@ -17,10 +17,7 @@ rc = crt_hg_reg(hg_class, CRT_HG_RPCID,
                 (crt_proc_cb_t)crt_proc_out_common,
                 (crt_hg_rpc_cb_t)crt_rpc_handler_common);
 
-
 ```
-
-
 
 crt_hg_reg: 调用Mecury的注册接口HG_Register
 
