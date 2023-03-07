@@ -22,7 +22,6 @@ d_iov_t		sg_iovs[INODE_AKEYS]; // 将文件的属性（创建时间、修改时�
 
 d_iov_set(&dkey, (void *)name, len); // 将文件名作为作为dkey
 
-
 ```
 
 ->daos_obj_update
