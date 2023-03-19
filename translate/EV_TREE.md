@@ -4,9 +4,7 @@ VOS支持键-数组对象，与KV存储类似，数组对象允许多个版本�
 
 **Example of extents and epochs in a Key Array object**
 
-[![../../docs/graph/Fig_012.png](assets/Fig_012.png)](https://github.com/daos-stack/daos/blob/master/docs/graph/Fig_012.png)
-
-
+![](assets/Fig_012.png)
 
 在上面的例子中，不同的区段范围之间有显著的重叠。VOS支持最近历元访问(nearest-epoch access)，这要求读取任何给定区间的最新值。
 

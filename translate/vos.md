@@ -44,8 +44,6 @@ VOS依赖于基于日志的体系结构，使用持久性内存主要维护内�
 
 VOS充分利用为支持这种编程模型而开发的[PMDK](https://github.com/daos-stack/daos/blob/master/src/vos/pmem.io)开源库，在用户空间中提供了一个轻量级的I/O堆栈。
 
-
-
 ### Lightweight I/O Stack: PMDK Libraries
 
 虽然持久性内存可以通过直接加载/存储访问，但更新需要通过多级缓存，包括处理器L1/2/3缓存和NVRAM控制器。只有在所有这些缓存都显式刷写之后，才可以保证持久性。VOS在持久内存中维护内部数据结构，这些数据结构必须保持一定程度的一致性，以便在意外崩溃或停电后恢复操作而不会丢失持久数据。对一个请求的处理通常会导致多次内存分配和更新，这些都必须以原子方式应用。
@@ -72,7 +70,7 @@ DAOS支持两种类型的值，每种类型都与一个分布键(DKEY)和一个�
 
 VOS对象不是显式创建的，而是在第一次写入时通过创建对象元数据并在所属容器的对象索引中插入对它的引用来创建的。所有对象更新都会记录每次更新的数据，这些更新可能是对象、DKEY、key、单个值、数组值punch或单个值或数组值的更新。请注意，数组对象区段的“击打”记录为零区段，而不是导致相关的数组区段或键值被丢弃。对对象、DKEY、key或单个值的击打会被记录，因此在以后的时间戳读取时不会看到任何数据。这确保了对象的完整版本历史仍然可以访问。然而，DAOS api只允许在快照中访问数据，因此VOS聚合可以积极地删除在已知快照中不再访问的对象、键和值。
 
-[![../../docs/graph/Fig_067.png](https://github.com/daos-stack/daos/raw/master/docs/graph/Fig_067.png)](https://github.com/daos-stack/daos/blob/master/docs/graph/Fig_067.png)
+![Fig_067.png](assets/Fig_067.png)
 
 在查找对象中的单个值时，遍历对象索引，以找到索引中与键匹配的历元数(近历元数)小于或等于请求的历元数的最大节点。如果找到值或负数，则返回。否则，返回一个"miss"，意味着这个键在这个VOS中从未更新过。这确保返回的是纪元历史中最近的值，而不管它们整合的时间顺序如何，并且忽略请求纪元之后的所有更新。
 
@@ -167,8 +165,6 @@ VOS KV支持从小到超大的密钥长度。对于key和dkey, VOS支持散列�
 
 VOS中的KV存储允许用户以随机顺序维护不同KV对的版本。例如，一次更新可能发生在epoch 10，然后在epoch 5进行另一次更新，其中HCE小于5。为了提供这种级别的灵活性，KV存储中的每个键都必须保持更新/打孔的周期。索引树中元素的排序首先基于键，然后基于年代。这种排序允许相同键值的epoch落在同一子树中，从而最小化搜索成本。使用稍后描述的[DTX](https://github.com/daos-stack/daos/tree/master/src/vos#81)执行冲突解决和跟踪。DTX确保副本是一致的，失败或未提交的更新在外部不可见。
 
-
-
 ### Internal Data Structures
 
 设计VOS KV存储需要一种树型数据结构，它可以动态增长并保持自平衡。树需要进行平衡，以确保时间复杂度不会随着树大小的增加而增加。树的数据结构有红黑树和B+树，前者是二叉查找树，后者是n元查找树。
@@ -193,7 +189,7 @@ VOS中的KV存储允许用户以随机顺序维护不同KV对的版本。例如�
 
 
 
-[![../../docs/graph/Fig_011.png](https://github.com/daos-stack/daos/raw/master/docs/graph/Fig_011.png)](https://github.com/daos-stack/daos/blob/master/docs/graph/Fig_011.png)
+![img](assets/Fig_011.png)
 
 红黑树和任何传统的二叉树一样，将小于根结点的键组织到左边的子树中，大于根结点的键组织到右边的子树中。值指针和键一起存储在每个节点中。另一方面，基于B+树的索引将键按升序存储在叶子节点，而叶子节点就是存储值的地方。根节点和内部节点(相应地用蓝色和栗色编码)便于定位适当的叶节点。每个B+树节点有多个位置，位置的数量由顺序决定。节点最多可以有1个序号。在红黑树的情况下，容器句柄cookie必须与每个键一起存储，但在B+树的情况下，只有叶节点上的cookie就足够了，因为遍历时不使用cookie。
 
@@ -226,7 +222,7 @@ VOS支持的第二种对象是键数组对象。与KV存储类似，数组对象
 
 **Example of extents and epochs in a Key Array object**
 
-[![../../docs/graph/Fig_012.png](https://github.com/daos-stack/daos/raw/master/docs/graph/Fig_012.png)](https://github.com/daos-stack/daos/blob/master/docs/graph/Fig_012.png)
+![img](assets/Fig_012-16791299573589.png)
 
 在[上面](https://github.com/daos-stack/daos/blob/master/src/vos/7f)的例子中，不同的区段范围之间有显著的重叠。VOS支持最近历元访问(nearest-epoch access)，这要求读取任何给定区间的最新值。例如，在上面的[图](https://github.com/daos-stack/daos/tree/master/src/vos#7f)中，如果对纪元10的区段范围4- 10有一个读请求，那么结果读取缓冲区应该包含纪元9的区段7-10、纪元8的区段5-7和纪元1的区段4-5。VOS数组对象还支持部分范围和完整范围的punch。
 
@@ -254,13 +250,13 @@ r -树提供了一种合理的方式来表示范围和历元有效性范围，�
 
 TODO:创建一个新的图形**Rectangles表示extent_range。epoch_validity使用[上面的表](https://github.com/daos-stack/daos/tree/master/src/vos#7g)**
 
-[![../../docs/graph/Fig_016.png](https://github.com/daos-stack/daos/raw/master/docs/graph/Fig_016.png)](https://github.com/daos-stack/daos/blob/master/docs/graph/Fig_016.png)
+[![../../docs/graph/Fig_016.png](assets/Fig_016-16791298096801.png)](https://github.com/daos-stack/daos/blob/master/docs/graph/Fig_016.png)
 
 下图[下图](https://github.com/daos-stack/daos/blob/master/src/vos/7l)显示了使用EV-Tree的分裂和裁剪操作构造的矩形，用于前面[表](https://github.com/daos-stack/daos/tree/master/src/vos#7g)中的示例，在偏移量{0 - 100}处额外写入，以考虑广泛分裂的情况。上图[上图](https://github.com/daos-stack/daos/tree/master/src/vos#7k)显示了相同示例的EV-Tree构造。
 
 **Tree (order - 4) for the example in Table 6 3 (pictorial representation shown in the figure [above](https://github.com/daos-stack/daos/tree/master/src/vos#7g)**
 
-[![../../docs/graph/Fig_017.png](https://github.com/daos-stack/daos/raw/master/docs/graph/Fig_017.png)](https://github.com/daos-stack/daos/blob/master/docs/graph/Fig_017.png)
+[![../../docs/graph/Fig_017.png](assets/Fig_017-16791298118234.png)](https://github.com/daos-stack/daos/blob/master/docs/graph/Fig_017.png)
 
 ev树中的插入通过检查重叠来定位要插入的适当叶节点。如果多个边界框重叠，则选择放大最小的边界框。通过选择面积最小的边界框来解决进一步的连接。每次插入操作的最大开销可能是O (logbn)。
 
@@ -280,8 +276,6 @@ VOS支持对单个dkey和key进行条件操作。支持以下操作:
 - 条件打孔:如果键存在则打孔，否则以- der_nonexist失败
 
 这些操作提供了原子操作，支持某些需要原子操作的用例。条件操作使用存在检查和读取时间戳的组合来实现。读时间戳使有限的MVCC能够防止读/写竞争，并提供可串行性保证。
-
-
 
 ### VOS Timestamp Cache
 
@@ -311,7 +305,7 @@ VOS维护一个读写时间戳的内存缓存，以强制MVCC语义。时间戳�
 
 **Scenarios illustrating utility of write timestamp cache**
 
-[![../../docs/graph/uncertainty.png](https://github.com/daos-stack/daos/raw/master/docs/graph/uncertainty.png)](https://github.com/daos-stack/daos/blob/master/docs/graph/uncertainty.png)
+![uncertainty.png](assets/uncertainty-167912973936715.png)
 
 
 
@@ -323,23 +317,24 @@ VOS维护一个读写时间戳的内存缓存，以强制MVCC语义。时间戳�
 
 MVCC规则确保事务按照它们的epoch顺序序列化执行，同时确保每个事务在打开之前观察所有冲突事务，只要系统时钟偏移始终在预期的最大系统时钟偏移(epsilon)内。为方便起见，规则将I/O操作分为读和写:
 
-——读
--获取密钥[密钥级别]
--检查对象空值[对象级别]
--检查dkey空[dkey等级]
--检查键空[键级别]
--列出容器下的对象[容器级别]
--在object[对象级别]下列出dkey
--在dkey下列出密钥
--将recx列在key下[key级别]
--在object[对象级别]下查询min/max dkeys
--在dkey下查询min/max akeys [dkey级别]
--在key下查询min/max recx [key级别]
-- - -写
--更新密钥[密钥级别]
--敲击键盘[按键级别]
--打孔dkey [dkey等级]
--重击对象[对象级别]
+
+  - Reads
+      - Fetch akeys [akey level]
+      - Check object emptiness [object level]
+      - Check dkey emptiness [dkey level]
+      - Check akey emptiness [akey level]
+      - List objects under container [container level]
+      - List dkeys under object [object level]
+      - List akeys under dkey [dkey level]
+      - List recx under akey [akey level]
+      - Query min/max dkeys under object [object level]
+      - Query min/max akeys under dkey [dkey level]
+      - Query min/max recx under akey [akey level]
+  - Writes
+      - Update akeys [akey level]
+      - Punch akeys [akey level]
+      - Punch dkey [dkey level]
+      - Punch object [object level]
 
 每次读写都是在四个级别中的一个:容器、对象、dkey和key。一个操作被认为是对根在它的层次上的整个子树的访问。尽管这会引入一些错误的冲突(例如，链表操作与不改变链表结果的底层更新操作)，但这种假设简化了规则。
 
@@ -383,27 +378,27 @@ if found and from a different transaction
     reject
 ```
 
-A transaction involving both reads and writes must follow both sets of rules. As optimizations, single-read transactions and snapshot (read) transactions do not need to update read timestamps. Snapshot creations, however, must update the read timestamps as if it is a transaction reading the whole container.
+同时涉及读写的事务必须遵循这两套规则。作为优化，单读事务和快照(读)事务不需要更新读时间戳。然而，快照创建必须更新读取时间戳，就像它是读取整个容器的事务一样。
 
-When a transaction is rejected, it restarts with the same transaction ID but a higher epoch. If the epoch becomes higher than the original epoch plus epsilon, the epoch becomes certain, guaranteeing the restarts due to the epoch uncertainty checks are bounded.
+当事务被拒绝时，它会以相同的事务ID重新开始，但是周期更高。如果迭代周期大于原始迭代周期加上，则迭代周期是确定的，从而保证迭代周期不确定性检测导致的重新启动是有界的。
 
-Deadlocks among transactions are impossible. A transaction t_1 with epoch e_1 may block a transaction t_2 with epoch e_2 only when t_2 needs to wait for t_1's writes to commit. Since the client caching is used, t_1 must be committing, whereas t_2 may be reading or committing. If t_2 is reading, then e_1 <= e_2. If t_2 is committing, then e_1 < e_2. Suppose there is a cycle of transactions reaching a deadlock. If the cycle includes a committing-committing edge, then the epochs along the cycle must increase and then decrease, causing a contradiction. If all edges are committing-reading, then there must be two such edges together, causing a contradiction that a reading transaction cannot block other transactions. Deadlocks are, therefore, not a concern.
+事务之间不可能发生死锁。只有当事务t_2需要等待事务t_1的写提交时，具有epoch e_1的事务t_1才能阻塞具有epoch e_2的事务t_2。由于使用了客户端缓存，t_1必须正在提交，而t_2可能正在读取或提交。如果t_2正在读取，则e_1 <= e_2。如果t_2正在提交，则e_1 < e_2。假设有一个事务循环到达死锁。如果周期包含一个提交-提交边，那么沿着周期的周期必须先增大后减小，从而导致矛盾。如果所有的边都在提交-读取，那么一定有两条这样的边在一起，从而导致一个矛盾:正在读取的事务不能阻塞其他事务。因此，我们不需要担心死锁。
 
-If an entity keeps getting reads with increasing epochs, writes to this entity may keep being rejected due to the entity's ever-increasing read timestamps. Exponential backoffs with randomizations (see d_backoff_seq) have been introduced during daos_tx_restart calls. These are effective for dfs_move workloads, where readers also write.
+如果一个实体的读取周期不断增加，那么对该实体的写入可能会因为该实体的读取时间戳不断增加而不断被拒绝。在daos_tx_restart调用期间引入了基于随机化的指数级退避(请参见d_backoff_seq)。这些对于dfs_move工作负载是有效的，在dfs_move工作负载中，读者也需要写入数据。
 
 
 
 ### Punch propagation
 
-Since conditional operations rely on an emptiness semantic, VOS read operations, particularly listing can be very expensive because they would require potentially reading the subtree to see if the entity is empty or not. In order to alieviate this problem, VOS instead does punch propagation. On a punch operation, the parent tree is read to see if the punch causes it to be empty. If it does, the parent tree is punched as well. Propagation presently stops at the dkey level, meaning the object will not be punched. Punch propagation only applies when punching keys, not values.
+由于条件操作依赖于空语义，VOS读取操作，特别是列表操作可能非常昂贵，因为它们可能需要读取子树来查看实体是否为空。为了缓解这个问题，VOS转而进行冲孔传播。在打孔操作时，会读取父树，看看打孔操作是否会导致它为空。如果有，父树也会被打孔。传播目前停止在dkey级别，这意味着对象不会被击打。打孔传播只适用于打孔键，而不是值。
 
 
 
 ## Epoch Based Operations
 
-Epochs provide a way for modifying VOS objects without destroying the history of updates/writes. Each update consumes memory and discarding unused history can help reclaim unused space. VOS provides methods to compact the history of writes/updates and reclaim space in every storage node. VOS also supports rollback of history in case transactions are aborted. The DAOS API timestamp corresponds to a VOS epoch. The API only allows reading either the latest state or from a persistent snapshot, which is simply a reference on a given epoch.
+Epochs提供了一种在不破坏更新/写入历史的情况下修改VOS对象的方法。每次更新都会消耗内存，而丢弃未使用的历史记录有助于回收未使用的空间。VOS提供了压缩写入/更新历史和回收每个存储节点空间的方法。VOS还支持在事务中止时回滚历史记录。DAOS API时间戳对应于VOS纪元。API只允许读取最新的状态或从持久快照中读取，持久快照只是给定时间的引用。
 
-To compact epochs, VOS allows all epochs between snapshots to be aggregated, i.e., the value/extent-data of the latest epoch of any key is always kept over older epochs. This also ensures that merging history does not cause loss of exclusive updates/writes made to an epoch. To rollback history, VOS provides the discard operation.
+为了压缩epoch, VOS允许聚合快照之间的所有epoch，即任何键的最新epoch的值/区段数据总是保存在旧epoch上。这也确保了合并历史记录不会导致对一个epoch的独占性更新/写入的丢失。为了回滚历史，VOS提供了丢弃操作。
 
 ```
 int vos_aggregate(daos_handle_t coh, daos_epoch_range_t *epr);
@@ -411,90 +406,87 @@ int vos_discard(daos_handle_t coh, daos_epoch_range_t *epr);
 int vos_epoch_flush(daos_handle_t coh, daos_epoch_t epoch);
 ```
 
-Aggregate and discard operations in VOS accept a range of epochs to be aggregated normally corresponding to ranges between persistent snapshots.
+VOS中的聚合和丢弃操作接受一个聚合的周期范围，通常对应于持久快照之间的范围。
 
 
 
 ### VOS Discard
 
-Discard forcefully removes epochs without aggregation. This operation is necessary only when the value/extent-data associated with a pair needs to be discarded. During this operation, VOS looks up all objects associated with each cookie in the requested epoch range from the cookie index table and removes the records directly from the respective object trees by looking at their respective epoch validity. DAOS requires a discard to service abort requests. Abort operations require a discard to be synchronous.
+Discard强制删除不聚合的epoch。该操作仅在需要丢弃与pair关联的值/extent-data时才需要。在这个操作中，VOS从cookie索引表中查找与请求epoch范围内的每个cookie相关的所有对象，并通过检查它们各自的epoch有效性，直接从各自的对象树中删除这些记录。DAOS需要一个discard来服务中止请求。中止操作要求丢弃操作是同步的。
 
-During discard, keys and byte-array rectangles need to be searched for nodes/slots whose end-epoch is (discard_epoch - 1). This means that there was an update before the now discarded epoch, and its validity got modified to support near-epoch lookup. This epoch validity of the previous update has to be extended to infinity to ensure future lookups at near-epoch would fetch the last known updated value for the key/extent range.
+在丢弃过程中，需要查找key和字节数组矩形的end-epoch为(discard_epoch - 1)的节点/槽位。这意味着在现在被丢弃的epoch之前有一个更新，并且它的有效性被修改以支持近epoch查找。上一次更新的周期有效性必须扩展到无限，以确保未来在接近周期时的查找将获取键/范围的最后已知更新值。
 
 
 
 ### VOS Aggregate
 
-During aggregation, VOS must retain the latest update to a key/extent-range discarding the others and any updates visible at a persistent snapshot. VOS can freely remove or consolidate keys or extents so long as it doesn't alter the view visible at the latest timestamp or any persistent snapshot epoch. Aggregation makes use of the vos_iterate API to find both visible and hidden entries between persistent snapshots and removes hidden keys and extents and merges contiguous partial extents to reduce metadata overhead. Aggregation can be an expensive operation but doesn't need to consume cycles on the critical path. A special aggregation ULT processes aggregation, frequently yielding to avoid blocking the continuing I/O.
+在聚合过程中，VOS必须保留对键/区段范围的最新更新，并丢弃在持久快照中可见的其他更新。VOS可以自由地删除或合并键或区段，只要它不改变最新时间戳或任何持久快照时期的可见视图。聚合利用vos_iterate API找到持久快照之间的可见和隐藏项，并删除隐藏的键和扩展，合并连续的部分扩展，以减少元数据开销。聚合可能是一个昂贵的操作，但不需要消耗关键路径上的周期。一种特殊的聚合处理聚合，经常产生以避免阻塞持续的I/O。
 
 
 
 ## VOS Checksum Management
 
-VOS is responsible for storing checksums during an object update and retrieve checksums on an object fetch. Checksums will be stored with other VOS metadata in storage class memory. For Single Value types, a single checksum is stored. For Array Value types, multiple checksums can be stored based on the chunk size.
+VOS负责在对象更新期间存储校验和，并在对象获取时检索校验和。校验和将与其他VOS元数据一起存储在存储类内存中。对于单值类型，存储单个校验和。对于数组值类型，可以根据块大小存储多个校验和。
 
-The **Chunk Size** is defined as the maximum number of bytes of data that a checksum is derived from. While extents are defined in terms of records, the chunk size is defined in terms of bytes. When calculating the number of checksums needed for an extent, the number of records and the record size is needed. Checksums should typically be derived from Chunk Size bytes, however, if the extent is smaller than Chunk Size or an extent is not "Chunk Aligned," then a checksum might be derived from bytes smaller than Chunk Size.
+**块大小**被定义为生成校验和的数据的最大字节数。区段以记录为单位定义，而块大小则以字节为单位定义。在计算某个区段所需的校验和数量时，需要记录的数量和记录的大小。校验和通常应该从块大小字节派生，但是，如果区间小于块大小或某个区间不是“块对齐”的，那么校验和可能从小于块大小的字节派生。
 
-The **Chunk Alignment** will have an absolute offset, not an I/O offset. So even if an extent is exactly, or less than, Chunk Size bytes long, it may have more than one Chunk if it crosses the alignment barrier.
+**块对齐**将有一个绝对偏移量，而不是I/O偏移量。因此，即使一个区间刚好或小于一个块大小字节，如果它跨越了对齐障碍，也可能有多个块。
 
 ### Configuration
 
-Checksums will be configured for a container when a container is created. Checksum specific properties can be included in the daos_cont_create API. This configuration has not been fully implemented yet, but properties might include checksum type, chunk size, and server side verification.
+校验和将在创建容器时为容器配置。校验和特定的属性可以包含在daos_cont_create API中。这个配置还没有完全实现，但是属性可能包括校验和类型、块大小和服务器端验证。
 
 ### Storage
 
-Checksums will be stored in a record(vos_irec_df) or extent(evt_desc) structure for Single Value types and Array Value types respectfully. Because the checksum can be of variable size, depending on the type of checksum configured, the checksum itself will be appended to the end of the structure. The size needed for checksums is included while allocating memory for the persistent structures on SCM (vos_reserve_single/vos_reserve_recx).
+校验和将存储在记录(vos_irec_df)或范围(evt_desc)结构中，对于单值类型和数组值类型都是如此。因为校验和的大小可以是可变的(取决于配置的校验和类型)，校验和本身会被添加到结构的末尾。在SCM (vos_reserve_single/vos_reserve_recx)上为持久结构分配内存时，包括了校验和所需的大小。
 
-The following diagram illustrates the overall VOS layout and where checksums will be stored. Note that the checksum type isn't actually stored in vos_cont_df yet.
+下图说明了VOS的总体布局以及校验和存储的位置。请注意，校验和类型实际上还没有存储在vos_cont_df中。
 
-[![../../docs/graph/Fig_021.png](https://github.com/daos-stack/daos/raw/master/docs/graph/Fig_021.png)](https://github.com/daos-stack/daos/blob/master/docs/graph/Fig_021.png)
+![../../docs/graph/Fig_021.png](assets/Fig_021.png)
 
 ### Checksum VOS Flow (vos_obj_update/vos_obj_fetch)
+在更新时，校验和是I/O描述符的一部分。然后，在akey_update_single/akey_update_recx中，校验和缓冲区指针包含在用于树更新的内部结构中(SV的是vos_rec_bundle, EV的是evt_entry_in)。如前所述，分配的持久结构的大小包括校验和的大小。最后，在存储记录(svt_rec_store)或区间(evt_insert)时，将校验和复制到持久结构的末尾。
 
-On update, the checksum(s) are part of the I/O Descriptor. Then, in akey_update_single/akey_update_recx, the checksum buffer pointer is included in the internal structures used for tree updates (vos_rec_bundle for SV and evt_entry_in for EV). As already mentioned, the size of the persistent structure allocated includes the size of the checksum(s). Finally, while storing the record (svt_rec_store) or extent (evt_insert), the checksum(s) are copied to the end of the persistent structure.
+在获取时，更新流程本质上是相反的。
 
-On a fetch, the update flow is essentially reversed.
+作为参考，流中的关键交叉点如下:
 
-For reference, key junction points in the flows are:
-
-- SV Update: vos_update_end -> akey_update_single -> svt_rec_store
-- Sv Fetch: vos_fetch_begin -> akey_fetch_single -> svt_rec_load
-- EV Update: vos_update_end -> akey_update_recx -> evt_insert
-- EV Fetch: vos_fetch_begin -> akey_fetch_recx -> evt_fill_entry
+- SV更新:vos_update_end—> akey_update_single—> svt_rec_store
+- Sv Fetch: vos_fetch_begin—> akey_fetch_single—> svt_rec_load
+- EV更新:vos_update_end—> akey_update_recx—> evt_insert
+- EV Fetch: vos_fetch_begin—> akey_fetch_recx—> evt_fill_entry
 
 ### Marking data as corrupted
 
-When data is discovered as being corrupted, the bio_addr will be marked with a corrupted flag to prevent subsequent verifications on data that is already known to be corrupted. Because the checksum scrubber will be iterating the vos objects, the vos_iter API is used to mark objects as corrupt. The vos_iter_process() will take the iter handle that the corruptions was discovered on and will call into the btree/evtree to update the durable format structure that contains the bio_addr.
+在发现数据损坏时，将用损坏标志标记bio_addr，以防止后续对已知损坏的数据进行验证。因为校验和筛选器将迭代vos对象，所以使用vos_iter API将对象标记为损坏。vos_iter_process()将获取发现损坏的iter句柄，并调用btree/evtree来更新包含bio_addr的持久格式结构。
 
 
 
 ## Metadata Overhead
 
-There is a tool available to estimate the metadata overhead. It is described on the [storage estimator](https://github.com/daos-stack/daos/blob/master/src/client/storage_estimator/README.md) section.
+有一个工具可以估算元数据开销。它在[storage estimator](https://github.com/daos-stack/daos/blob/master/src/client/storage_estimator/README.md)部分中有描述。
 
 
 
 ## Replica Consistency
 
-DAOS supports multiple replicas for data high availability. Inconsistency between replicas is possible when a target fails during an update to a replicated object and when concurrent updates are applied on replicated targets in an inconsistent order.
+DAOS支持多个副本以实现数据的高可用性。当目标在更新复制对象期间失败，并且以不一致的顺序在复制目标上应用并发更新时，副本之间可能出现不一致。
 
-The most intuitive solution to the inconsistency problem is distributed lock (DLM), used by some distributed systems, such as Lustre. For DAOS, a user-space system with powerful, next generation hardware, maintaining distributed locks among multiple, independent application spaces will introduce unacceptable overhead and complexity. DAOS instead uses an optimized two-phase commit transaction to guarantee consistency among replicas.
-
-
+解决不一致性问题最直观的方法是分布式锁(distributed lock, DLM)，它被一些分布式系统使用，如Lustre。对于DAOS，一个具有强大的下一代硬件的用户空间系统，在多个独立的应用空间之间维护分布式锁将引入不可接受的开销和复杂性。相反，DAOS使用优化的两阶段提交事务来保证副本之间的一致性。
 
 ### Single redundancy group based DAOS Two-Phase Commit (DTX)
 
-When an application wants to modify (update or punch) a multiple replicated object or EC object, the client sends the modification RPC to the leader shard (via [DTX Leader Election](https://github.com/daos-stack/daos/tree/master/src/vos#812) algorithm discussed below). The leader dispatches the RPC to the other related shards, and each shard makes its modification in parallel. Bulk transfers are not forwarded by the leader but rather transferred directly from the client, improving load balance and decreasing latency by utilizing the full client-server bandwidth.
+当一个应用程序想要修改(更新或冲击)一个多复制的对象或EC对象时，客户端将修改RPC发送给leader分片(通过下面讨论的[DTX leader Election](https://github.com/daos-stack/daos/tree/master/src/vos#812)算法)。leader将RPC分发给其他相关的分片，每个分片并行地进行修改。批量传输不经过leader转发，而是直接从客户端传输，通过充分利用客户端-服务器的带宽来改善负载均衡并降低延迟。
 
-Before modifications are made, a local transaction, called 'DTX', is started on each related shard (both leader and non-leaders) with a client generated DTX identifier that is unique for the modification within the container. All the modifications in a DTX are logged in the DTX transaction table and back references to the table are kept in related modified record. After local modifications are done, each non-leader marks the DTX state as 'prepared' and replies to the leader. The leader sets the DTX state to 'committable' as soon as it has completed its modifications and has received successful replies from all non-leaders. If any shard(s) fail to execute the modification, it will reply to the leader with failure, and the leader will globally abort the DTX. Once the DTX is set by the leader to 'committable' or 'aborted', it replies to the client with the appropriate status.
+在进行修改之前，在每个相关的分片(包括leader和非leader)上启动一个名为` DTX `的本地事务，该事务具有客户端生成的DTX标识符，该标识符对于容器内的修改是唯一的。DTX中的所有修改都记录在DTX事务表中，对该表的反向引用保存在相关的修改记录中。局部修改完成后，每个非leader将DTX状态标记为“已准备”并回复leader。一旦leader完成了修改并且收到了所有非leader的成功回复，它就会将DTX状态设置为` committable `。如果任何分片执行修改失败，它将以失败回应leader, leader将全局中止DTX。一旦DTX被leader设置为` committable `或` aborted `，它就会以适当的状态返回给客户端。
 
-The client may consider a modification complete as soon as it receives a successful reply from the leader, regardless of whether the DTX is actually 'committed' or not. It is the responsibility of the leader to commit the 'committable' DTX asynchronously. This can happen if the 'committable' count or DTX age exceed some thresholds or the DTX is piggybacked via other dispatched RPCs due to potential conflict with subsequent modifications.
+客户端一旦收到leader的成功回复，就可以认为修改完成了，而不管DTX是否真的“提交”了。异步提交` committable ` DTX是leader的责任。如果` committable `计数或DTX年龄超过某些阈值，或者由于与后续修改的潜在冲突，DTX被其他调度的rpc承载，则会发生这种情况。
 
-When an application wants to read something from an object with multiple replicas, the client can send the RPC to any replica. On the server side, if the related DTX has been committed or is committable, the record can be returned to. If the DTX state is prepared, and the replica is not the leader, it will reply to the client telling it to send the RPC to the leader instead. If it is the leader and is in the state 'committed' or 'committable', then such entry is visible to the application. Otherwise, if the DTX on the leader is also 'prepared', then for transactional read, ask the client to wait and retry via returning -DER_INPROGRESS; for non-transactional read, related entry is ignored and the latest committed modification is returned to the client.
+当一个应用需要从一个具有多个副本的对象中读取内容时，客户端可以将RPC发送到任何副本。在服务器端，如果相关的DTX已经提交或可提交，则可以返回记录。如果DTX state已经准备好，并且副本不是leader，它会回复客户端，告诉它将RPC发送给leader。如果它是leader并且处于` committed `或` committable `状态，那么该条目对应用程序是可见的。否则，如果leader上的DTX也准备好了，那么对于事务读取，通过返回-DER_INPROGRESS请求客户端等待并重试;对于非事务性读取，将忽略相关条目，并将最新提交的修改返回给客户端。
 
-If the read operation refers to an EC object and the data read from a data shard (non-leader) has a 'prepared' DTX, the data may be 'committable' on the leader due to the aforementioned asynchronous batched commit mechanism. In such case, the non-leader will refresh related DTX status with the leader. If the DTX status after refresh is 'committed', then related data can be returned to the client; otherwise, if the DTX state is still 'prepared', then for transactional read, ask the client to wait and retry via returning -DER_INPROGRESS; for non-transactional read, related entry is ignored and the latest committed modification is returned to the client.
+如果读操作引用的是一个EC对象，并且从数据分片(非leader)读取的数据有一个“准备好的”DTX，那么由于前面提到的异步批量提交机制，该数据在leader上可能是“可提交的”。在这种情况下，非leader将刷新与leader相关的DTX状态。如果刷新后的DTX状态为'committed'，则可以将相关数据返回给客户端;否则，如果DTX状态仍然是'prepared'，那么对于事务读取，通过返回-DER_INPROGRESS请求客户端等待并重试;对于非事务性读取，将忽略相关条目，并将最新提交的修改返回给客户端。
 
-The DTX model is built inside a DAOS container. Each container maintains its own DTX table that is organized as two B+trees in SCM: one for active DTXs and the other for committed DTXs. The following diagram represents the modification of a replicated object under the DTX model.
+DTX模型构建在DAOS容器内。每个容器维护自己的DTX表，在SCM中被组织为两棵B+树:一棵用于活动的DTX，另一棵用于已提交的DTX。下图表示了DTX模型下复制对象的修改。
 
 **Modify multiple replicated object under DTX model**
 
@@ -504,12 +496,12 @@ The DTX model is built inside a DAOS container. Each container maintains its own
 
 ### Single redundancy group based DTX Leader Election
 
-In single redundancy group based DTX model, the leader selection is done for each object or dkey following these general guidelines:
+在基于单冗余组的DTX模型中，对每个对象或dkey进行leader选择遵循以下一般准则:
 
-R1: When different replicated objects share the same redundancy group, the same leader should not be used for each object.
+R1:当不同复制对象共享相同冗余组时，不应该为每个对象使用相同的leader。
 
-R2: When a replicated object with multiple DKEYs span multiple redundancy groups, the leaders in different redundancy groups should be on different servers.
+R2:当有多个dkey的复制对象跨越多个冗余组时，不同冗余组中的leader应该在不同的服务器上。
 
-R3: Servers that fail frequently should be avoided in leader selection to avoid frequent leader migration.
+R3: leader选择时要避免频繁故障的服务器，避免频繁的leader迁移。
 
-R4: For EC object, the leader will be one of the parity nodes within current redundancy group.
+R4:对于EC对象，leader将是当前冗余组中的校验节点之一。
