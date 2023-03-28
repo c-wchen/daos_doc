@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2023-03-28T09:20:25.299Z" agent="5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36" etag="6zALBurFWdPZpisKN9mN" version="21.0.8" type="github" pages="9">
+<mxfile host="app.diagrams.net" modified="2023-03-28T12:15:14.249Z" agent="5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36" etag="K6BkezJc_pPHHW5SKYvE" version="21.0.8" type="github" pages="9">
   <diagram id="ZFg_mrYJk2t0nbDr_XJb" name="POOL_CREATE">
     <mxGraphModel dx="1363" dy="2537" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1600" math="0" shadow="0">
       <root>
@@ -931,7 +931,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="oW7a4APQOEXPVSrgmdc4-1" value="&lt;h1&gt;关键参数&lt;/h1&gt;&lt;p&gt;nr_threads: 来自配置文件的target个数&lt;/p&gt;&lt;p&gt;dss_numa_node: 来自配置文件当前rank所属的numa节点&lt;/p&gt;&lt;p&gt;dss_tgt_offload_xs_nr: 来自配置文件辅助线程个数&lt;/p&gt;&lt;p&gt;dss_num_cores_numa_node: 所属numa node的内核个数&lt;/p&gt;&lt;p&gt;DAOS_TGT0_OFFSET: 系统xstream，表现为SYS_XS&lt;/p&gt;&lt;p&gt;oversubscribe： 超额认购, 一个核绑定多个tgt&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;" style="text;html=1;strokeColor=none;fillColor=none;spacing=5;spacingTop=-20;whiteSpace=wrap;overflow=hidden;rounded=0;" vertex="1" parent="1">
+        <mxCell id="oW7a4APQOEXPVSrgmdc4-1" value="&lt;h1&gt;配置参数&lt;/h1&gt;&lt;p&gt;nr_threads: 来自配置文件的target个数&lt;/p&gt;&lt;p&gt;dss_numa_node: 来自配置文件当前rank所属的numa节点&lt;/p&gt;&lt;p&gt;dss_tgt_offload_xs_nr: 来自配置文件辅助线程个数&lt;/p&gt;&lt;p&gt;dss_num_cores_numa_node: 所属numa node的内核个数&lt;/p&gt;&lt;p&gt;DAOS_TGT0_OFFSET: 系统xstream，表现为SYS_XS&lt;/p&gt;&lt;p&gt;oversubscribe： 超额认购, 一个核绑定多个tgt&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;" style="text;html=1;strokeColor=none;fillColor=none;spacing=5;spacingTop=-20;whiteSpace=wrap;overflow=hidden;rounded=0;" vertex="1" parent="1">
           <mxGeometry x="10" y="60" width="430" height="210" as="geometry" />
         </mxCell>
         <mxCell id="oW7a4APQOEXPVSrgmdc4-19" value="" style="shape=table;startSize=0;container=1;collapsible=0;childLayout=tableLayout;fontSize=16;" vertex="1" parent="1">
